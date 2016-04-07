@@ -1,0 +1,249 @@
+/* Welcome to Compass.
+ * In this file you should write your main styles. (or centralize your imports)
+ * Import this file using the following HTML or equivalent:
+ * <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css" /> 
+
+@import "compass/reset";
+*/
+
+$radius: 0;
+
+@-webkit-keyframes fadeout {
+    from {opacity: 1;}
+    to {opacity: 0;}
+}
+body {
+	margin: 0;
+	padding: 0;
+	font-size: 15px;
+}
+#content {
+	width: 100%;
+}
+.col-md-1, .col-md-2 {
+  padding: 0;
+}
+.table {
+	font-size: 1.25rem;
+}
+#add-modify-project, #add-modify-task {
+	.row {
+		margin-top: 2rem;
+		margin-bottom: 2rem;
+	}
+}
+.hidden {
+	display: none;
+}
+.alert-danger {
+	background-image: none;
+}
+.alert {
+	box-shadow: none;
+	-webkit-box-shadow: none;
+	text-shadow: none;
+	margin: 1rem 0;
+	&.delay {
+		-webkit-animation-name: fadeout;
+    	-webkit-animation-duration: 0.5s;
+    	-webkit-animation-delay: 3.5s;
+    	-webkit-animation-fill-mode: forwards;
+	}
+}
+#project-table {
+	.btn-primary {
+		background-color: #308dff;
+		color: #FFFFFF;
+		border-radius: 0;
+		border: none;
+		-webkit-box-shadow: none;
+		background-image: none;
+		text-shadow: none;
+		width: 100%;
+	}
+	.btn-secondary {
+		color: #1a5bab;
+		background-color: #94c3fd;
+		border-radius: 0;
+		border: none;
+		-webkit-box-shadow: none;
+		background-image: none;
+		text-shadow: none;
+		width: 100%;
+	}
+	.task
+	{
+		a {
+			text-decoration: underline;
+		}
+	}
+	.input-group-addon {
+		border-radius: $radius;
+	}
+	.form-control {
+		border-radius: $radius;
+	}
+	.btn {
+		border-radius: $radius;
+	}
+}
+#login-form {
+	background-color: #EEE;
+	width: auto;
+	padding: 3rem;
+	margin-top:2rem;
+	h4 {
+		padding: 1rem;
+		font-weight: bold;
+	}
+	.input-group {
+		padding: 1rem;
+		width: 100%;
+		.btn-primary {
+			background-color: #308dff;
+			color: #FFFFFF;
+			border-radius: 0;
+			border: none;
+			-webkit-box-shadow: none;
+			background-image: none;
+			text-shadow: none;
+			width: 100%;
+		}
+	}
+}
+
+.alert {
+	margin-left: 1rem;
+}
+
+#nav-bar {
+	.nav-pills {
+		text-align: center;
+		background-color: #000000;
+		height: 100%;
+		>li {
+			border: none;
+			margin: 0;
+			>a, >a:focus, >a:hover {
+				background-color: transparent;
+				color: #FFFFFF;
+				font-weight: bold;
+				line-height: 3rem;
+				border-radius: 0;
+				outline: 0;
+			}
+			>a:focus, >a:hover {
+				color: #94c3fd;
+			}
+			&.active {
+				>a, >a:focus, >a:hover {
+					background-color: transparent;
+					color: #308dff;
+				}
+				&:after {
+					content: "\0";
+					position: absolute;
+					right: 0;
+					top: 30%;
+					width: 0; 
+					height: 0; 
+					border-top: 10px solid transparent;
+					border-bottom: 10px solid transparent;
+					border-right:10px solid #308dff; 
+				}
+			}
+		}
+		>:first-child {
+			margin-top: 6rem;
+		}
+	}
+}
+
+#project-bar {
+	.nav-pills {
+		text-align: center;
+		background-color: #308dff;
+		height: 100%;
+		.badge {
+			background-color: #ffffff;
+			color: #308dff;
+		}
+		.btn-primary {
+			color: #308dff;
+			background-color: #FFFFFF;
+			border-radius: 0;
+			border: none;
+			-webkit-box-shadow: none;
+			background-image: none;
+			text-shadow: none;
+			width: auto;
+			margin: 1rem;
+		}
+		>h5 {
+			color: #ffffff;
+			font-weight: bold;
+			line-height: 3rem;
+			margin-bottom: 3rem;
+			cursor: pointer;
+			&.active {
+				&:after {
+					content: "\0";
+					position: absolute;
+					right: 0;
+					top: 63px;
+					width: 0; 
+					height: 0; 
+					border-top: 10px solid transparent;
+					border-bottom: 10px solid transparent;
+					border-right:10px solid #FFFFFF; 
+				}
+			}
+		}
+		>li {
+			border-bottom: 1px solid #1a5bab;
+			text-align: left;
+			margin: 0;
+			.glyphicon {
+				float: right;
+				padding: 0 0.25rem;
+			}
+			&.active {
+				>a, >a:focus, >a:hover {
+					background-color: #94c3fd;
+					color: #1a5bab;
+				}
+				&:after {
+					content: "\0";
+					position: absolute;
+					right: 0;
+					top: 20%;
+					width: 0; 
+					height: 0; 
+					border-top: 10px solid transparent;
+					border-bottom: 10px solid transparent;
+					border-right:10px solid #FFFFFF; 
+				}
+			}
+			>a, >a:focus, >a:hover {
+				background-color: transparent;
+				color: #94c3fd;
+				font-weight: bold;
+				line-height: 1.5rem;
+				border-radius: 0;
+				outline: 0;
+			}
+			>a:focus, >a:hover {
+				color: #ddd;
+			}
+			&:first-of-type {
+				border-top: 1px solid #1a5bab;
+			}
+		}
+		>:first-child {
+			margin-top: 6rem;
+		}
+	}
+	#task-list {
+		padding: 12px;
+	}
+}

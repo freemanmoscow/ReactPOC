@@ -1,0 +1,1382 @@
+<html>
+  <head>
+    <title>PEAR</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/bootstrap-theme.min.css" rel="stylesheet">
+    <script src="../js/react.js"></script>
+    <script src="../js/JSXTransformer.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="http://localhost:4502/etc/designs/pear/clientlib.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    <link  rel="stylesheet" type="text/css" href="../css/screen.css">
+  </head>
+  <body>
+    <div id="content" class="row">
+      <div id="nav-bar" class="col-md-1">
+        <ul class="nav nav-pills nav-stacked">
+          <li role="presentation" class="active"><a href="#">Home</a></li>
+          <li role="presentation"><a href="#">Search</a></li>
+          <li role="presentation"><a href="#">Calendar</a></li>
+          <li role="presentation"><a href="#">Settings</a></li>
+        </ul>
+      </div>
+      <div id="project-table" class="col-md-11">
+        <div id="alert-container">Loading...</div>
+      </div>
+      <!-- div id="project-bar" class="col-md-1"></div>
+      <div id="task-list" class="col-md-8">a</div -->
+    </div>
+    <div id="modal-container"></div>
+    <script type="text/jsx">
+    $(document).ready(function() {
+
+      pear.settings({ origin : "http://localhost:4502" });
+      
+      // Create Login Page
+
+      var LoginPage = React.createClass({
+        handleSubmit: function() {
+          this.props.onSubmit();
+        },
+        handleChange: function() {
+          this.props.onInputChange(
+            this.refs.userName.getDOMNode().value,
+            this.refs.password.getDOMNode().value
+          );
+        },
+        render: function() {
+          return(
+            <div id="login-container">
+              <div className="row" id="alert-container"></div>
+              <div className="row">
+                <div className="col-lg-5">
+                </div>
+                <div className="col-lg-3">
+                  <div id="login-form">
+                    <h4>{this.props.userLoginLabel}</h4>
+                    <div className="input-group">
+                      <span className="input-group-addon">
+                         {this.props.userNameLabel}
+                      </span>
+                      <input ref="userName" type="text" className="form-control" aria-label="..." value={this.props.userName} onChange={this.handleChange} />
+                    </div>
+                    <div className="input-group">
+                      <span className="input-group-addon">
+                        {this.props.passwordLabel}
+                      </span>
+                      <input ref="password" type="password" className="form-control" aria-label="..." value={this.props.password} onChange={this.handleChange} />
+                    </div>
+                    <div className="input-group">
+                      <button type="button" className="btn btn-primary" onClick={this.handleSubmit}>{this.props.loginLabel}</button>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-lg-4">
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+      // Create Alert
+
+      var Alert = React.createClass({
+        render: function() {
+          return(
+            <div className="alert alert-danger alert-dismissible fade in" role="alert" id={"alert-window-"+this.props.index}>
+              <button type="button" className="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+              {this.props.message}
+            </div>
+          );
+        }
+      });
+
+      // Create Modal
+
+      var Modal = React.createClass({
+        render: function() {
+          console.log("Content for modal: ", this.props.content);
+          return(
+            <div className="modal fade" id="modal-window">
+              <div className="modal-dialog">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <button type="button" className="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 className="modal-title">{this.props.title}</h4>
+                  </div>
+                  <div className="modal-body" dangerouslySetInnerHTML={{__html: this.props.content}}>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-default" data-dismiss="modal" onClick={this.props.cancel}>Cancel</button>
+                    <button type="button" className="btn btn-primary" onClick={this.props.ok}>OK</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+      // Create Task List Item
+
+      var TaskList = React.createClass({
+        render: function() {
+          return (
+            <tr className="row task">
+              <td className="col-md-4"><b>{this.props.task.taskname}</b><br /><ProjectName projectID={this.props.task.project} projects={this.props.projects} /></td>
+              <td className="col-md-3"><UserName userID={this.props.task.assignee} /><br />Open Date: {this.props.task.created.toLocaleDateString()}</td>
+              <td className="col-md-4"><TaskStatus status={this.props.task.status} /></td>
+              <td className="col-md-1"><a href="#" onClick={this.props.onEdit.bind(null, this.props.index)}>{this.props.editLabel}</a><br /><a href="#" onClick={this.props.onDelete.bind(null, this.props.index)}>{this.props.deleteLabel}</a></td>
+            </tr>
+          );
+        }
+      });
+      
+      // Create Task User Name
+
+      var UserName = React.createClass({
+        render: function() {
+          var user,
+          that = this;
+          user = $.grep(USERS, function(e) {
+            return e[":name"] == that.props.userID;
+          });
+          if(user[0] === undefined)
+            user[0] = {name: ""};
+          else
+            user = user[0];
+          return (<span>{user.name}</span>);
+        }
+      });
+
+      // Create Task Status
+
+      var TaskStatus = React.createClass({
+        render: function() {
+          var status;
+          (TASK_STATUS[this.props.status] === undefined) ? status = "" : status = TASK_STATUS[this.props.status].status;
+          return (<span>Status: {status}</span>);
+        }
+      });
+
+      // Create Project Name
+
+      var ProjectName = React.createClass({
+        render: function() {
+          var project,
+              that = this;
+          project = $.grep(this.props.projects, function(e) {
+            return e[":name"] == that.props.projectID;
+          });
+          if(project[0] === undefined)
+            project[0] = {projectname: ""};
+          else
+            project = project[0];
+          return (<span>Project: {project.projectname}</span>);
+        }
+      });
+
+      // Create Project List Item
+
+      var ProjectListItem = React.createClass({
+        handleChange: function() {
+          this.props.onUserInput (
+            this.props.index
+          );
+        },
+        handleDelete: function() {
+          this.props.onDelete (
+            this.props.index
+          );
+        },
+        handleEdit: function(e) {
+          this.props.onEdit (
+            e,
+            this.props.index
+          );
+        },
+        render: function() {
+          return (
+            <li className={this.props.active} role="presentation" onClick={this.handleChange}><a href="#">{this.props.project.projectname}<span className="glyphicon glyphicon-remove-sign" onClick={this.handleDelete}></span><span className="glyphicon glyphicon-edit" onClick={this.handleEdit}></span></a></li>
+          );
+        },
+        componentDidMount: function() {
+
+        }
+      });
+
+      // Create Add Project
+
+      var AddModifyProject = React.createClass({
+        handleSubmit: function() {
+          this.props.addProject();
+        },
+        handleDelete: function() {
+          this.props.deleteProject(this.props.index);
+        },
+        handleTypeChange: function(type) {
+          $("#add-modify-project #project-type text").html(PROJECT_TYPE[type].type);
+          this.props.onInputChange(
+            this.refs.projectName.getDOMNode().value,
+            type,
+            this.refs.projectSummary.getDOMNode().value,
+            this.refs.projectDescription.getDOMNode().value
+          );
+        },
+        handleChange: function() {
+          this.props.onInputChange(
+            this.refs.projectName.getDOMNode().value,
+            this.refs.projectType.getDOMNode().value,
+            this.refs.projectSummary.getDOMNode().value,
+            this.refs.projectDescription.getDOMNode().value
+          );
+        },
+        componentDidMount: function() {
+        },
+        render: function() {
+          console.log("AddModifyProject render", this.props.projectType);
+          var typeRows = [],
+              that = this,
+              projectTypeText,
+              pageTitle
+              secondaryButton = "";
+          if (this.props.action == 1) {
+            pageTitle = "Create a New Project";
+            secondaryButton = "hidden";
+          } 
+          else if (this.props.action == 2) {
+            pageTitle = "Modify " + this.props.projectName;
+          }
+          (this.props.projectType === "" || this.props.projectType === undefined) ? projectTypeText = "Select Project Type" : projectTypeText = PROJECT_TYPE[this.props.projectType].type;
+          PROJECT_TYPE.forEach(function(type, index){
+            typeRows.push(
+              <li key={index}><a href="#" onClick={that.handleTypeChange.bind(null, index)}>{type.type}</a></li>
+            );
+          });
+          console.log("Modify Project Name:", this.props.projectName);
+          return(
+            <div id="add-modify-project">
+              <h4>{pageTitle}</h4>
+              <h5>Fill in project details</h5>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Project Name
+                    </span>
+                    <input ref="projectName" type="text" className="form-control" aria-label="..." value={this.props.projectName} onChange={this.handleChange} />
+                  </div>
+                </div>
+                <div className="col-lg-4">
+                  <div className="input-group" id="project-type">
+                    <input ref="projectType" type="hidden" value={this.props.projectType} />
+                    <div className="btn-group">
+                      <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                        <text>{projectTypeText}</text> <span className="caret"></span>
+                      </button>
+                      <ul className="dropdown-menu" role="menu">
+                        {typeRows}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Summary
+                    </span>
+                    <textarea ref="projectSummary" type="text" className="form-control" aria-label="..." value={this.props.projectSummary} onChange={this.handleChange} />
+                  </div>
+                </div>
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Description
+                    </span>
+                    <textarea ref="projectDescription" type="text" className="form-control" aria-label="..." value={this.props.projectDescription} onChange={this.handleChange} />
+                  </div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group" className="row">
+                    <div className="col-lg-6"><button type="button" className="btn btn-primary" onClick={this.handleSubmit}>{this.props.submitLabel}</button></div>
+                    <div className="col-lg-6"><button type="button" className={"btn btn-secondary " + secondaryButton} onClick={this.handleDelete}>{this.props.deleteLabel}</button></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+      // Create Add Task
+
+      var AddModifyTask = React.createClass({
+        handleSubmit: function() {
+          this.props.addTask();
+        },
+        handlePriorityChange: function(priority) {
+          $("#add-modify-task #task-priority text").html(TASK_PRIORITY[priority].priority);
+          this.props.onInputChange(
+            this.refs.taskName.getDOMNode().value,
+            this.refs.taskSummary.getDOMNode().value,
+            this.refs.taskDescription.getDOMNode().value,
+            priority,
+            this.refs.taskAssignee.getDOMNode().value,
+            this.refs.taskStatus.getDOMNode().value,
+            this.refs.taskDueDate.getDOMNode().value,
+            this.refs.taskComment.getDOMNode().value,
+            this.refs.taskProject.getDOMNode().value
+          );
+        },
+        handleAssigneeChange: function(user) {
+          $("#add-modify-task #task-assignee text").html(USERS[user].name);
+          this.props.onInputChange(
+            this.refs.taskName.getDOMNode().value,
+            this.refs.taskSummary.getDOMNode().value,
+            this.refs.taskDescription.getDOMNode().value,
+            this.refs.taskPriority.getDOMNode().value,
+            user,
+            this.refs.taskStatus.getDOMNode().value,
+            this.refs.taskDueDate.getDOMNode().value,
+            this.refs.taskComment.getDOMNode().value,
+            this.refs.taskProject.getDOMNode().value
+          );
+        },
+        handleStatusChange: function(status) {
+          $("#add-modify-task #task-status text").html(TASK_STATUS[status].status);
+          this.props.onInputChange(
+            this.refs.taskName.getDOMNode().value,
+            this.refs.taskSummary.getDOMNode().value,
+            this.refs.taskDescription.getDOMNode().value,
+            this.refs.taskPriority.getDOMNode().value,
+            this.refs.taskAssignee.getDOMNode().value,
+            status,
+            this.refs.taskDueDate.getDOMNode().value,
+            this.refs.taskComment.getDOMNode().value,
+            this.refs.taskProject.getDOMNode().value
+          );
+        },
+        handleProjectChange: function(project) {
+          console.log(this.refs.taskProject.getDOMNode().value);
+          $("#add-modify-task #task-project text").html(this.props.projects[project].projectname);
+          this.props.onInputChange(
+            this.refs.taskName.getDOMNode().value,
+            this.refs.taskSummary.getDOMNode().value,
+            this.refs.taskDescription.getDOMNode().value,
+            this.refs.taskPriority.getDOMNode().value,
+            this.refs.taskAssignee.getDOMNode().value,
+            this.refs.taskStatus.getDOMNode().value,
+            this.refs.taskDueDate.getDOMNode().value,
+            this.refs.taskComment.getDOMNode().value,
+            project
+          );
+        },
+        handleChange: function() {
+          this.props.onInputChange(
+            this.refs.taskName.getDOMNode().value,
+            this.refs.taskSummary.getDOMNode().value,
+            this.refs.taskDescription.getDOMNode().value,
+            this.refs.taskPriority.getDOMNode().value,
+            this.refs.taskAssignee.getDOMNode().value,
+            this.refs.taskStatus.getDOMNode().value,
+            this.refs.taskDueDate.getDOMNode().value,
+            this.refs.taskComment.getDOMNode().value,
+            this.refs.taskProject.getDOMNode().value
+          );
+          console.log(this.refs.taskDueDate.getDOMNode().value);
+        },
+        render: function() {
+          var that = this,
+              priorityRows = [],
+              assigneeRows = [],
+              statusRows = [],
+              projectRows = [],
+              taskPriorityText = "",
+              taskAssigneeText = "",
+              taskStatusText = "",
+              projectText = "",
+              pageTitle = "",
+              buttonText = "";
+          if (this.props.action == 3) {
+            pageTitle = "Create a New Task";
+            buttonText = this.props.submitLabel;
+          } else if (this.props.action == 4) {
+            pageTitle = "Modify " + this.props.taskName;
+            buttonText = "Confirm Changes";
+          }
+          (this.props.taskPriority === "" || this.props.taskPriority === undefined) ? taskPriorityText = "Select Priority" : taskPriorityText = TASK_PRIORITY[this.props.taskPriority].priority;
+          (this.props.taskAssignee === "" || this.props.taskAssignee === undefined) ? taskAssigneeText = "Select Assignee" : taskAssigneeText = USERS[this.props.taskAssignee].name;
+          (this.props.taskStatus === "" || this.props.taskStatus === undefined) ? taskStatusText = "Select Status" : taskStatusText = TASK_STATUS[this.props.taskStatus].status;
+          (this.props.taskProject === "" || this.props.taskProject === undefined || this.props.taskProject === false) ? taskProjectText = "Select Project" : taskProjectText = this.props.projects[this.props.taskProject].projectname;
+          this.props.projects.forEach(function(project, index){
+            projectRows.push(
+              <li key={index}><a href="#" onClick={that.handleProjectChange.bind(null, index)}>{project.projectname}</a></li>
+            );
+          });
+          TASK_PRIORITY.forEach(function(priority, index){
+            priorityRows.push(
+              <li key={index}><a href="#" onClick={that.handlePriorityChange.bind(null, index)}>{priority.priority}</a></li>
+            );
+          });
+          USERS.forEach(function(user, index){
+            assigneeRows.push(
+              <li key={index}><a href="#" onClick={that.handleAssigneeChange.bind(null, index)}>{user.name}</a></li>
+            );
+          });
+          TASK_STATUS.forEach(function(status, index){
+            statusRows.push(
+              <li key={index}><a href="#" onClick={that.handleStatusChange.bind(null, index)}>{status.status}</a></li>
+            );
+          });
+          return(
+            <div id="add-modify-task">
+              <h4>{pageTitle}</h4>
+              <h5>Fill in task details</h5>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group" id="task-project">
+                    <input ref="taskProject" type="hidden" value={this.props.taskProject} />
+                    <div className="btn-group">
+                      <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                        <text>{taskProjectText}</text> <span className="caret"></span>
+                      </button>
+                      <ul className="dropdown-menu" role="menu">
+                        {projectRows}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Task Name
+                    </span>
+                    <input ref="taskName" type="text" className="form-control" aria-label="..." value={this.props.taskName} onChange={this.handleChange} />
+                  </div>
+                </div>
+                <div className="col-lg-4">
+                  <div className="input-group" id="task-priority">
+                    <input ref="taskPriority" type="hidden" value={this.props.taskPriority} />
+                    <div className="btn-group">
+                      <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                        <text>{taskPriorityText}</text> <span className="caret"></span>
+                      </button>
+                      <ul className="dropdown-menu" role="menu">
+                        {priorityRows}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Summary
+                    </span>
+                    <textarea ref="taskSummary" type="text" className="form-control" aria-label="..." value={this.props.taskSummary} onChange={this.handleChange} />
+                  </div>
+                </div>
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Description
+                    </span>
+                    <textarea ref="taskDescription" type="text" className="form-control" aria-label="..." value={this.props.taskDescription} onChange={this.handleChange} />
+                  </div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group" id="task-assignee">
+                    <input ref="taskAssignee" type="hidden" value={this.props.taskAssignee} />
+                    <div className="btn-group">
+                      <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                        <text>{taskAssigneeText}</text> <span className="caret"></span>
+                      </button>
+                      <ul className="dropdown-menu" role="menu">
+                        {assigneeRows}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-lg-4">
+                  <div className="input-group" id="task-status">
+                    <input ref="taskStatus" type="hidden" value={this.props.taskStatus} />
+                    <div className="btn-group">
+                      <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                        <text>{taskStatusText}</text> <span className="caret"></span>
+                      </button>
+                      <ul className="dropdown-menu" role="menu">
+                        {statusRows}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+               <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Task Due Date
+                    </span>
+                    <input ref="taskDueDate" type="date" className="form-control" aria-label="..." value={this.props.taskDueDate} onChange={this.handleChange} />
+                  </div>
+                </div>
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <span className="input-group-addon">
+                      Comment
+                    </span>
+                    <textarea ref="taskComment" type="text" className="form-control" aria-label="..." value={this.props.taskComment} onChange={this.handleChange} />
+                  </div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-lg-4">
+                  <div className="input-group">
+                    <button type="button" className="btn btn-primary" onClick={this.handleSubmit}>{buttonText}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+      // Create Sort Dropdown
+      
+      var SortDropdown = React.createClass ({
+        handleChange: function(sortBy) {
+          this.props.onUserInput(sortBy);
+          $("#task-sort text").html(this.props.options[sortBy]);
+        },
+        render: function(){
+          this.props.options = ["Default", "Name", "Date"]; 
+          var optionRows = [],
+              that = this;
+          this.props.options.forEach(function(option, index){
+            optionRows.push(
+              <li key={index}><a ref="sortByName" href="#" onClick={that.handleChange.bind(that, index)}>{option}</a></li>
+            )
+          })
+          return(
+            <div className="btn-group" id="task-sort">
+              <button type="button" className="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                <text>{this.props.sortLabel}</text> <span className="caret"></span>
+              </button>
+              <ul className="dropdown-menu" role="menu">
+                {optionRows}
+              </ul>
+            </div>
+          );
+        }
+      });
+
+      // Create Project Table (Main Class)
+
+      var ProjectTable = React.createClass ({
+        
+        // Handles click on "Selected Project"
+        handleClickProject: function(selectedProject) {
+          var that = this;
+          console.log("Select Project:", PROJECTS[selectedProject]);
+          if (this.props.projects[selectedProject] === undefined)
+            selectedProject = false;
+          pear.tasks.fetch(this.props.projects[selectedProject][":name"])
+          .done(function (tasks) {
+            TASKS = tasks.hits;
+            that.setState({
+              selectedProject: selectedProject,
+              tasklistAction: 0
+            });
+          })
+          .fail(function(result){
+            this.alert(result.statusText);
+          });
+        },
+
+        // Handles click on "All Projects"
+        handleClickDisplayAll: function() {
+          this.setState({
+            selectedProject: false,
+            tasklistAction: 0
+          });
+        },
+
+        // Handles click on "Delete Project"
+        handleDeleteProject: function(selectedProject) {
+          console.log("Delete Project: ", PROJECTS[selectedProject]);
+          var content = "Are you sure you would like to delete <b>" + this.props.projects[selectedProject].projectname + "</b> permanently? Once deleted, you will not be able to access <b>" + this.props.projects[selectedProject].projectname + "</b> again.";
+          console.log(content);
+          React.render(<Modal title="Delete Project" content={content} ok={this.confirmDeleteProject} cancel={this.cancelDeleteProject} />, document.getElementById("modal-container"));
+          $("#modal-window").modal();
+        },
+        
+        // Handles click on "Confirm Delete Project"
+        displayAlert: function(message) {
+          /*
+          React.render(<Alert message={result.statusText} />, document.getElementById("alert-container"));
+          setTimeout(function(){ $("#alert-window").alert('close');}, 3000);
+          console.log("Alert text",result);
+          */
+          var that = this;
+          this.state.alerts.push(message);
+          setTimeout(function(){ that.state.alerts.shift(); that.forceUpdate(); }, 4000);
+          this.forceUpdate();
+        },
+        confirmDeleteProject: function() {
+          var that = this;
+          pear.projects.remove(this.props.projects[this.state.selectedProject][":name"])
+          .done(function(){
+            that.props.projects.splice(that.state.selectedProject, 1);
+            that.setState({
+              selectedProject: false
+            });      
+          })
+          .fail(function(result){
+            that.displayAlert(result.statusText);
+          });
+          $("#modal-window").modal('hide')
+        },
+
+        // Handles click on "Cancel Delete Project"
+        cancelDeleteProject: function() {
+          return;
+        },
+
+        // Handles click on "Modify Project"
+        handleModifyProject: function(e, selectedProject) {
+          e.stopPropagation();
+          console.log("Modify Project: ", selectedProject);
+          this.setState({
+            tasklistAction: 2,
+            selectedProject: selectedProject,
+            projectID: this.props.projects[selectedProject][":name"],
+            projectName: this.props.projects[selectedProject].projectname,
+            projectType: this.props.projects[selectedProject].type,
+            projectSummary: this.props.projects[selectedProject].summary,
+            projectDescription: this.props.projects[selectedProject].description
+          });
+        },
+
+        // Handles click on "Modify Task"
+        handleModifyTask: function(selectedTask){
+          console.log("Modify Task", selectedTask);
+          var projectIndex = "",
+              assigneeIndex = "",
+              that = this,
+              dateString = this.props.tasks[selectedTask].due.toISOString();
+          this.props.projects.forEach(function(project, index){
+            if(project[":name"] !== undefined && project[":name"] === that.props.tasks[selectedTask].project) {
+              projectIndex = index;
+            }
+          });
+          USERS.forEach(function(user, index){
+            if(user[":name"] !== undefined && user[":name"] === that.props.tasks[selectedTask].assignee) {
+              assigneeIndex = index;
+            }
+          });
+          this.setState({
+            selectedTask: selectedTask,
+            tasklistAction: 4,
+            taskID: this.props.tasks[selectedTask][":name"],
+            taskProject: projectIndex,
+            taskName: this.props.tasks[selectedTask].taskname,
+            taskSummary: this.props.tasks[selectedTask].summary,
+            taskDescription: this.props.tasks[selectedTask].description,
+            taskPriority: this.props.tasks[selectedTask].priority,
+            taskAssignee: assigneeIndex,
+            taskStatus: this.props.tasks[selectedTask].status,
+            taskDueDate:  dateString.substr(0, dateString.indexOf("T")),
+            taskComment: this.props.tasks[selectedTask].comment
+          });
+        },
+
+        // Handles click on "Submit Modify Project"
+        handleSubmitModifyProject: function(){
+          var that = this;
+          pear.projects.update({
+            ":name": that.state.projectID,
+            projectname: that.state.projectName,
+            type: that.state.projectType,
+            summary: that.state.projectSummary,
+            description: that.state.projectDescription
+          })
+          .done(function(set){
+            that.props.projects[that.state.selectedProject].projectname = that.state.projectName;
+            that.props.projects[that.state.selectedProject].type = that.state.projectType;
+            that.props.projects[that.state.selectedProject].summary = that.state.projectSummary;
+            that.props.projects[that.state.selectedProject].description = that.state.projectDescription;
+            that.setState({
+              tasklistAction: 0
+            });
+            console.log("Submit Modify Project!", that.state.projectName, that.state.projectID);            
+          })
+          .fail(function(result){
+            that.displayAlert(result.statusText);
+          });
+        },
+
+        // Handles click on "Submit Modify Task"
+        handleSubmitModifyTask: function(){
+          var that = this;
+          console.log({
+            ":name": that.state.taskID,
+            project: this.props.projects[that.state.taskProject][":name"],
+            taskname: that.state.taskName,
+            summary: that.state.taskSummary,
+            description: that.state.taskDescription,
+            priority: that.state.taskPriority,
+            assignee: USERS[that.state.taskAssignee][":name"],
+            status: that.state.taskStatus,
+            createdBy: "user",
+            created: new Date(),
+            due: new Date(that.state.taskDueDate)
+          })
+          pear.tasks.update({
+            ":name": that.state.taskID,
+            project: this.props.projects[that.state.taskProject][":name"],
+            taskname: that.state.taskName,
+            summary: that.state.taskSummary,
+            description: that.state.taskDescription,
+            priority: that.state.taskPriority,
+            assignee: USERS[that.state.taskAssignee][":name"],
+            status: that.state.taskStatus,
+            createdBy: "user",
+            created: new Date(),
+            due: new Date(that.state.taskDueDate)
+          })
+          .done(function(set){
+            that.props.tasks[that.state.selectedTask].project = that.props.projects[that.state.taskProject][":name"];
+            that.props.tasks[that.state.selectedTask].taskname = that.state.taskName;
+            that.props.tasks[that.state.selectedTask].summary =  that.state.taskSummary;
+            that.props.tasks[that.state.selectedTask].description = that.state.taskDescription;
+            that.props.tasks[that.state.selectedTask].priority = that.state.taskPriority;
+            that.props.tasks[that.state.selectedTask].assignee = USERS[that.state.taskAssignee][":name"];
+            that.props.tasks[that.state.selectedTask].status = that.state.taskStatus;
+            that.props.tasks[that.state.selectedTask].createdBy = "user";
+            that.props.tasks[that.state.selectedTask].created = new Date();
+            that.props.tasks[that.state.selectedTask].due = new Date(that.state.taskDueDate);
+            that.setState({
+              tasklistAction: 0
+            });
+            console.log("Submit Modify Task!", that.state.taskName, that.state.taskID);            
+          })
+          .fail(function(result){
+            that.displayAlert(result.statusText);
+          });
+        },
+
+        // Handles click on "Add Project"
+        handleAddProject: function(){
+          console.log("Add New Project");
+          this.setState({
+            tasklistAction: 1,
+            projectName: "",
+            projectType: "",
+            projectSummary: "",
+            projectDescription: ""
+          });
+        },
+        handleAddTask: function(){
+          var nowDate = new Date(),
+              dateString = nowDate.toISOString();
+          console.log("Add New Task");
+          this.setState({
+            tasklistAction: 3,
+            taskProject: "",
+            taskName: "",
+            taskSummary: "",
+            taskDescription: "",
+            taskPriority: "",
+            taskAssignee: "",
+            taskStatus: "",
+            taskDueDate: dateString.substr(0, dateString.indexOf("T")),
+            taskComment: ""
+          });
+        },
+
+        // Handles click on "Submit Add Project"
+        handleSubmitAddProject: function(){
+          var that = this;
+          pear.projects.insert({
+            projectname: this.state.projectName,
+            type: this.state.projectType,
+            summary: this.state.projectSummary,
+            description: this.state.projectDescription
+          })
+          .done(function(set) {
+            that.props.projects.push({
+              projectname: that.state.projectName,
+              type: that.state.projectType,
+              summary: that.state.projectSummary,
+              description: that.state.projectDescription,
+              ":name": set.name
+            });
+            that.setState({
+              tasklistAction: 0
+            });
+            console.log("Submit Add Project!", that.state.projectName);
+          })
+          .fail(function(result){
+            that.displayAlert(result.statusText);
+          });
+        },
+
+        // Handles click on "Submit Add Task"
+        handleSubmitAddTask: function(){
+          var that = this,
+              created = new Date(),
+              due = new Date(that.state.taskDueDate),
+              ready = false;
+          if(this.state.taskProject === "") {
+            this.displayAlert("Please, select project");
+            ready = false;
+          } else {
+            ready = true;
+          }
+          if(that.state.taskAssignee === "") {
+              this.displayAlert("Please, select assignee");
+              ready = false;
+          } else {
+              ready ? true : false;
+          }
+          console.log("Ready?", ready);
+          if(ready) {
+            pear.tasks.insert({
+              project: that.props.projects[that.state.taskProject][":name"],
+              taskname: that.state.taskName,
+              summary: that.state.taskSummary,
+              description: that.state.taskDescription,
+              priority: that.state.taskPriority,
+              assignee: USERS[that.state.taskAssignee][":name"],
+              status: that.state.taskStatus,
+              createdBy: "user",
+              created: created,
+              due: due
+            })
+            .done(function(set) {
+              that.props.tasks.push({
+                project: that.props.projects[that.state.taskProject][":name"],
+                taskname: that.state.taskName,
+                summary: that.state.taskSummary,
+                description: that.state.taskDescription,
+                priority: that.state.taskPriority,
+                assignee: USERS[that.state.taskAssignee][":name"],
+                status: that.state.taskStatus,
+                createdBy: "user",
+                created: created,
+                due: due,
+                ":name": set.name
+              });
+              that.setState({
+                tasklistAction: 0
+              });
+              console.log("Submit Add Task!", that.state.taskName);
+            })
+            .fail(function(result){
+              that.displayAlert(result.statusText);
+            });
+          }
+        },
+
+        // Handles click on "Delete Task"
+        handleDeleteTask: function(selectedTask){
+          console.log(selectedTask);
+          var content = "Are you sure you would like to delete <b>" + this.props.tasks[selectedTask].taskname + "</b> permanently? Once deleted, you will not be able to access <b>" + this.props.tasks[selectedTask].taskname + "</b> again.";
+          console.log(content);
+          React.render(<Modal title="Delete Task" content={content} ok={this.confirmDeleteTask.bind(this, selectedTask)} cancel={this.cancelDeleteTask} />, document.getElementById("modal-container"));
+          $("#modal-window").modal();
+        },
+
+        // Handles click on "Confirm Delete Task"
+        confirmDeleteTask: function(selectedTask) {
+          console.log("Remove task:", selectedTask)
+          pear.tasks.remove(this.props.tasks[selectedTask].project, this.props.tasks[selectedTask][":name"])
+          .done(function(set) {
+            console.log("Task removed succesfully");
+          })
+          .fail(function(result){
+            that.displayAlert(result.statusText);
+          });
+          this.props.tasks.splice(selectedTask, 1);
+          this.forceUpdate();
+          $("#modal-window").modal('hide')
+        },
+
+        // Handles click on "Cancel Delete Task"
+        cancelDeleteTask: function() {
+          return;
+        },
+        handleSort: function(sortBy) {
+          console.log("Sort By: ", sortBy, " and update")
+          this.setState({
+            sortBy: sortBy
+          });
+        },
+        
+        // Handles "Project Input Change"
+        handleProjectInputChange: function(projectName, projectType, projectSummary, projectDescription) {
+          this.setState({
+            projectName: projectName,
+            projectType: projectType,
+            projectSummary: projectSummary,
+            projectDescription: projectDescription
+          });
+        },
+
+        // Handles "Task Input Change"
+        handleTaskInputChange: function(taskName, taskSummary, taskDescription, taskPriority, taskAssignee, taskStatus, taskDueDate, taskComment, taskProject) {
+          this.setState({
+            taskName: taskName,
+            taskSummary: taskSummary,
+            taskDescription: taskDescription,
+            taskPriority: taskPriority,
+            taskAssignee: taskAssignee,
+            taskStatus: taskStatus,
+            taskDueDate: taskDueDate,
+            taskComment: taskComment,
+            taskProject: taskProject
+          });
+        },
+
+        // Handles "Login Input Change" 
+        handleLoginInputChange: function(userName, password) {
+          this.setState({
+            userName: userName,
+            password: password
+          });
+        },
+
+        // Sets initial state
+        getInitialState: function() {
+          return {
+            userName: "",
+            password: "",
+            isLoggedIn: false,
+            selectedProject: false,
+            selectedTask: false,
+            sortBy: 0,
+            tasklistAction: 0,
+            projectID: "",
+            projectName: "",
+            projectType: "",
+            projectSummary: "",
+            projectDescription: "",
+            taskID: "",
+            taskProject: "",
+            taskName: "",
+            taskSummary: "",
+            taskDescription: "",
+            taskPriority: "",
+            taskAssignee: "",
+            taskStatus: "",
+            taskDueDate: "",
+            taskComment: "",
+            alerts: []
+          }
+        },
+        submitLogin: function() {
+          if(this.state.userName == "usmanov" && this.state.password == "test") { 
+            this.setState({
+              isLoggedIn: true
+            });
+          } else {
+            React.render(<Alert index="login" message="Wrong Login" />, document.getElementById("alert-container"));
+            setTimeout(function(){ $("#alert-window-login").alert('close');}, 3000);
+          }
+        },
+
+        // Renders Application
+        render: function() {
+          var taskRows = [],
+              projectRows = [],
+              that = this,
+              isActive = "",
+              tasklistContent,
+              alertRows = [];
+          if (this.state.isLoggedIn) {
+            if (this.state.selectedProject === false) {
+              isActive = "active";
+            }
+            switch (this.state.sortBy) {
+              case 1:
+                this.props.tasks.sort(function(a, b) {
+                  if (a.taskname < b.taskname) return -1
+                  else if (a.taskname > b.taskname) return 1
+                  else return 0;
+                });
+                break;
+              case 2:
+                this.props.tasks.sort(function(a, b) {
+                  if (a.created < b.created) return -1
+                  else if (a.created > b.created) return 1
+                  else return 0;
+                });
+                break;
+              default:
+                this.props.tasks.sort(function(a, b) {
+                  if (a[":name"] < b[":name"]) return -1
+                  else if (a[":name"] > b[":name"]) return 1
+                  else return 0;
+                });
+            }
+            this.state.alerts.forEach(function(alert, index) {
+              alertRows.push(<Alert index={index} message={alert} key={index} alerts={that.state.alerts} />);
+            });
+            this.props.tasks.forEach(function(task, index) {
+              if (that.state.selectedProject === false || that.props.projects[that.state.selectedProject][":name"] == task.project) {
+                taskRows.push(
+                  <TaskList
+                    task={task} 
+                    key={task[":name"]+task.project}
+                    index={index}
+                    status={task.status} 
+                    projects={that.props.projects}
+                    onDelete={that.handleDeleteTask}
+                    onEdit={that.handleModifyTask}
+                    editLabel={CONTENT.edit}
+                    deleteLabel={CONTENT.delete} />
+                );
+              }
+            });
+            this.props.projects.forEach(function(project, index) {
+              var isActive = "";
+              if (index === that.state.selectedProject) {
+                isActive = "active";
+              }
+              projectRows.push(
+                <ProjectListItem
+                  active={isActive}
+                  project={project}
+                  key={project[":name"]}
+                  index={index}
+                  selectedProject={that.state.selectedProject}
+                  onUserInput={that.handleClickProject}
+                  onDelete={that.handleDeleteProject}
+                  onEdit={that.handleModifyProject} />
+              );
+            });
+            switch (this.state.tasklistAction) {
+              case 1:
+                console.log("you chose add project");
+                tasklistContent =
+                  <AddModifyProject
+                    index={this.state.selectedProject}
+                    projectName={this.state.projectName}
+                    projectType={this.state.projectType}
+                    projectSummary={this.state.projectSummary}
+                    projectDescription={this.state.projectDescription}
+                    addProject={this.handleSubmitAddProject}
+                    deleteProject={this.handleDeleteProject}
+                    action="1"
+                    onInputChange={this.handleProjectInputChange} 
+                    submitLabel={CONTENT.buttons.submitProject}
+                    deleteLabel={CONTENT.buttons.deleteProject} />;
+                break;
+              case 2:
+                console.log("you chose modify project", this.state.projectName);
+                tasklistContent =
+                  <AddModifyProject
+                    index={this.state.selectedProject}
+                    projectName={this.state.projectName}
+                    projectType={this.state.projectType}
+                    projectSummary={this.state.projectSummary}
+                    projectDescription={this.state.projectDescription}
+                    addProject={this.handleSubmitModifyProject}
+                    deleteProject={this.handleDeleteProject}
+                    action="2"
+                    onInputChange={this.handleProjectInputChange}
+                    submitLabel={CONTENT.buttons.confirmChanges}
+                    deleteLabel={CONTENT.buttons.deleteProject} />;
+                break;
+              case 3:
+                console.log("you chose add task", this.state.taskDueDate);
+                console.log("Project", this.state.selectedProject);
+                tasklistContent =
+                  <AddModifyTask
+                    projects={this.props.projects}
+                    taskProject={this.state.selectedProject}
+                    taskName={this.state.taskName}
+                    taskSummary={this.state.taskSummary}
+                    taskDescription={this.state.taskDescription}
+                    taskPriority={this.state.taskPriority}
+                    taskAssignee={this.state.taskAssignee}
+                    taskStatus={this.state.taskStatus}
+                    taskDueDate={this.state.taskDueDate}
+                    taskCreationDate={Date()}
+                    taskAutor="user"
+                    addTask={this.handleSubmitAddTask}
+                    action="3"
+                    onInputChange={this.handleTaskInputChange}
+                    submitLabel={CONTENT.buttons.submitTask} />;
+                break;
+              case 4:
+                console.log("you chose modify task", this.state.taskDueDate);
+                tasklistContent =
+                  <AddModifyTask
+                    projects={this.props.projects}
+                    taskProject={this.state.taskProject}
+                    taskName={this.state.taskName}
+                    taskSummary={this.state.taskSummary}
+                    taskDescription={this.state.taskDescription}
+                    taskPriority={this.state.taskPriority}
+                    taskAssignee={this.state.taskAssignee}
+                    taskStatus={this.state.taskStatus}
+                    taskDueDate={this.state.taskDueDate}
+                    taskCreationDate={Date()}
+                    taskAutor="user"
+                    addTask={this.handleSubmitModifyTask}
+                    action="4"
+                    onInputChange={this.handleTaskInputChange}
+                    submitLabel={CONTENT.buttons.confirmChanges} />;
+                break;
+              default:
+                tasklistContent =
+                  <table className="table">
+                    <thead>
+                      <tr className="row">
+                        <td><h4>{Date()}</h4></td>
+                        <td></td>
+                        <td></td>
+                        <td><button type="button" id="add-task" data-loading-text="Loading..." className="btn btn-primary" autoComplete="off" onClick={this.handleAddTask}>{CONTENT.buttons.addTaskButton}</button></td>
+                      </tr>
+                      <tr className="row">
+                        <th>
+                          {CONTENT.activeTasksHeader} <span className="badge">{taskRows.length}</span>
+                        </th>
+                        <th></th>
+                        <th></th>
+                        <th>
+                          <SortDropdown
+                            sortLabel={CONTENT.sortBy}
+                            onUserInput={this.handleSort} 
+                            sortBy={this.state.sortBy} />
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>{taskRows}</tbody>
+                  </table>;
+            }
+            return (
+              <div className="row">
+                <div className="col-md-2" id="project-bar">
+                  <ul className="nav nav-pills nav-stacked">
+                    <h5 className={isActive} onClick={this.handleClickDisplayAll}>{CONTENT.activeProjectsHeader} <span className="badge">{this.props.projects.length}</span></h5>
+                    {projectRows}
+                    <button type="button" id="add-project" data-loading-text="Loading..." className="btn btn-primary" autoComplete="off" onClick={this.handleAddProject}>{CONTENT.buttons.addNewProject}</button>
+                  </ul>
+                </div>
+                <div className="col-md-10" id="task-list">
+                  <div id="alert-container">{alertRows}</div>
+                  {tasklistContent}
+                </div>
+              </div>
+            );
+          } else {
+            return(<LoginPage
+              onInputChange={this.handleLoginInputChange}
+              onSubmit={this.submitLogin} 
+              userName={this.state.userName}
+              password={this.state.password} 
+              userNameLabel={CONTENT.username}
+              passwordLabel={CONTENT.password}
+              loginLabel={CONTENT.buttons.loginButton}
+              userLoginLabel={CONTENT.loginFormTitle} />);
+          }
+        }
+      });
+
+      // Projects store
+      var PROJECTS; /* = [
+        {":name": "1", projectname: "Project 1", type: "1", summary: "this is a test project 1", description: "this is the description of the project 1"},
+        {":name": "2", projectname: "Project 2", type: "1", summary: "this is a test project 2", description: "this is the description of the project 2"},
+        {":name": "5", projectname: "Project 3", type: "1", summary: "this is a test project 3", description: "this is the description of the project 3"},
+        {":name": "4", projectname: "Project 4", type: "2", summary: "this is a test project 3", description: "this is the description of the project 3"}
+      ]; */
+
+      // Tasks store
+      var TASKS = [
+        {":name": "1", taskname: "Task 3", summary: "", description: "",  priority: "1", due: "1/28/2015", created: "1/1/2015", createdBy: "user", assignee: "user_1", status: "1", project: "project"},
+        {":name": "2", taskname: "Task 1", summary: "", description: "",  priority: "1", due: "5/10/2015", created: "1/1/2015", createdBy: "user_1", assignee: "user", status: "2", project: "project_0"},
+        {":name": "4", taskname: "Task 9", summary: "", description: "",  priority: "3", due: "1/16/2016", created: "1/1/2016", createdBy: "user", assignee: "user_1", status: "4", project: "project_2"},
+        {":name": "5", taskname: "Task 6", summary: "", description: "",  priority: "1", due: "12/11/2014", created: "1/1/2014", createdBy: "user_1", assignee: "user", status: "4", project: "project_2"},
+        {":name": "3", taskname: "Task 2", summary: "", description: "",  priority: "2", due: "11/30/2015", created: "1/1/2015", createdBy: "user", assignee: "user_1", status: "4", project: "project_1"}
+      ];
+
+      // Users store
+      var USERS = [
+        {":name": "user", name: "Pavel Usmanov"},
+        {":name": "user_1", name: "Brian Vaughn"}
+      ]
+
+      // Project types store
+      var PROJECT_TYPE = [
+        {type: "Task"}, 
+        {type: "Bug"},
+        {type: "CR"},
+        {type: "TR"},
+        {type: "Documentation"},
+        {type: "Training"}
+      ];
+
+      // Task statuses store
+      var TASK_STATUS = [
+        {status: "Open"},
+        {status: "Development"},
+        {status: "Reopened"},
+        {status: "QCR"},
+        {status: "Testing"},
+        {status: "Approved"}
+      ];
+
+      // Task priorities store
+      var TASK_PRIORITY = [
+        {priority: "Major"},
+        {priority: "Critical"},
+        {priority: "Blocker"},
+        {priority: "Minor"}
+      ];
+      
+      var CONTENT = {
+        "forgotPasswordLink": "Forgot Your Password?",
+        "jcr:description": "Best comp ever",
+        "password": "Password",
+        "jcr:title": "Best comp ever",
+        "modifyProjectFormHeader": "Make changes to the project below",
+        "deleteSentenceFragmentTwo": "permanently?",
+        "jcr:created": "Thu Mar 19 2015 10:46:10 GMT-0400",
+        "homeLink": "Home",
+        "createProjectTitle": "Create a New Project",
+        "deleteSentenceFragmentOne": "Are you sure you would like to delete",
+        "openDate": "Open Date",
+        "jcr:createdBy": "admin",
+        "newTaskFormHeader": "Fill in details for the task",
+        "backLink": "Go Back",
+        "activeTasksHeader": "Active Tasks",
+        "appSupportLink": "App Support",
+        "username": "Username",
+        "deleteProjectTitle": "Delete Project?",
+        "calendarLink": "Calendar",
+        "sortBy": "Sort By",
+        "modifyTaskFormHeader": "Make changes to the task below",
+        "status": "Status",
+        "newProjectFormHeader": "Fill in details for the project",
+        "jcr:primaryType": "cq:Component",
+        "loginFormTitle": "User Login",
+        "activeProjectsHeader": "Active Projects",
+        "project": "Project",
+        "taskName": "Task Name",
+        "settingsLink": "Settings",
+        "delete": "Delete",
+        "edit": "Edit",
+        "deleteSentenceFragmentThree": "Once deleted, you will no longer be able to access it again.",
+        "searchLink": "Search",
+        "buttons": {
+          "submitProject": "Submit New Project",
+          "confirmChanges": "Confirm Changes",
+          "addTaskButton": "New Task",
+          "submitComment": "Submit Comment",
+          "deleteTask": "Delete Task",
+          "jcr:primaryType": "nt:unstructured",
+          "importTaskButton": "Import Task",
+          "addNewProject": "Add New Project",
+          "deleteProject": "Delete Project",
+          "loginButton": "Login",
+          "cancelButton": "Cancel",
+          "submitTask": "Submit New Task",
+          "deleteButton": "Delete"
+        },
+        "fields": {
+          "projectDescription": "Project Description",
+          "taskTitle": "Task Title",
+          "projectSummary": "Project Summary",
+          "projectType": "Project Type",
+          "creationDate": "Creation Date",
+          "jcr:primaryType": "nt:unstructured",
+          "openedBy": "Opened By",
+          "projectTitle": "Project Title"
+        },
+        "projectTypes": {
+          "documentation": "Documentation",
+          "task": "Task",
+          "cr": "Change Request",
+          "tr": "Trouble Request",
+          "bug": "Bug",
+          "training": "Training",
+          "jcr:primaryType": "nt:unstructured"
+        },
+        "taskPriorities": {
+          "blocker": "Blocker",
+          "major": "Major",
+          "critical": "Critical",
+          "minor": "Minor",
+          "jcr:primaryType": "nt:unstructured"
+        },
+        "taskStatus": {
+          "approved": "Approved",
+          "development": "Development",
+          "reopened": "Reopened",
+          "testing": "Testing",
+          "open": "Open",
+          "qcr": "Code Review",
+          "jcr:primaryType": "nt:unstructured"
+        }
+      };
+
+      pear.ajax(pear.getContentPath('infinity.json'))
+      .done(function (content) {
+        CONTENT = (content);
+        renderPear();
+      }).fail(function(result){
+        React.render(<Alert index="connection" message={result.statusText} />, document.getElementById("alert-container"));
+        setTimeout(function(){ $("#alert-window-connection").alert('close'); location.reload();}, 5000);
+      });
+      
+      function renderPear()
+      {
+        pear.projects.fetch()
+        .done(function (projects) { 
+          var Deffered = [];
+          PROJECTS = projects.hits;
+          TASKS = [];
+          PROJECTS.forEach(function(project){
+            Deffered.push(
+              pear.tasks.fetch(project[":name"])
+              .done(function (tasks) {
+                tasks.hits.forEach(function(task, index){
+                  task.project = project[":name"];
+                  TASKS.push(task);
+                });
+              })
+              .fail(function(result){
+                React.render(<Alert index="connection" message={result.statusText} />, document.getElementById("alert-container"));
+                setTimeout(function(){ $("#alert-window-connection").alert('close'); location.reload();}, 5000);
+                console.log(result);
+              })
+            );
+          });
+          $.when.apply($, Deffered).then(function(){
+            React.render(<ProjectTable projects={PROJECTS} tasks={TASKS} />, document.getElementById("project-table"));
+          });
+        })
+        .fail(function(result){
+          React.render(<Alert index="connection" message={result.statusText} />, document.getElementById("alert-container"));
+          setTimeout(function(){ $("#alert-window-connection").alert('close'); location.reload();}, 5000);
+          console.log(result);
+        });
+      }
+    });
+    </script>
+  </body>
+</html>

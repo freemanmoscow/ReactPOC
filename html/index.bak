@@ -1,0 +1,108 @@
+<html>
+  <head>
+    <title>Hello React</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/bootstrap-theme.min.css" rel="stylesheet">
+    <script src="../js/react.js"></script>
+    <script src="../js/JSXTransformer.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="../js/bootstrap.min.js"></script>
+    <link  rel="stylesheet" type="text/css" href="../css/screen.css">
+  </head>
+  <body>
+    <div id="content" class="row">
+      <div id="nav-bar" class="col-md-1">
+        <ul class="nav nav-pills nav-stacked">
+          <li role="presentation" class="active"><a href="#">Home</a></li>
+          <li role="presentation"><a href="#">Search</a></li>
+          <li role="presentation"><a href="#">Calendar</a></li>
+          <li role="presentation"><a href="#">Settings</a></li>
+        </ul>
+      </div>
+      <div id="project-bar" class="col-md-1"></div>
+      <div id="task-list" class="col-md-8">a</div>
+    </div>
+    <script type="text/jsx">
+    $(document).ready(function(){
+      var selectedProject = 0;
+      var TaskList = React.createClass({
+        render: function() {
+          var taskNodes = this.props.tasks.map(function(task) {
+            console.log(task.name);
+            var taskEntry = (task.project == selectedProject || !selectedProject) ? 
+                  <tr className="row" key={task.id}>
+                    <td className="col-md-3"><b>{task.name}</b><br />Project: {task.project}</td>
+                    <td className="col-md-3">{task.assignee}</td>
+                    <td className="col-md-3">c</td>
+                    <td className="col-md-3">d</td>
+                  </tr>
+                  :
+                  <tr></tr>;
+            return taskEntry;
+          });
+          return (
+            <table className="table">{taskNodes}</table>
+          );
+        }
+      });
+      var ProjectList = React.createClass({
+        render: function() {
+          var projectNodes = this.props.projects.map(function(project) {
+            return(
+              <li key={project.id} role="presentation"><a href="#">{project.name}<span className="glyphicon glyphicon-remove-sign"></span><span className="glyphicon glyphicon-edit"></span></a></li>
+            );
+          })
+          return (
+            <ul className="nav nav-pills nav-stacked">
+              <h5>Active Projects <span className="badge">{this.props.projects.length}</span></h5>
+              {projectNodes}
+            </ul>
+          );
+        },
+        componentDidMount: function() {
+          $("#project-bar > ul > li").first().addClass("active");
+          $(".nav>li>a").on('click', function(e) {
+            $(e.target).parents("li").parent().find("li.active").removeClass("active");
+            $(e.target).parents("li").addClass("active");
+          }); 
+        }
+      });
+      var PROJECTS = [
+        {id: "1", name: "Project 1", type: "1", summary: "this is a test project 1", description: "this is the description of the project 1"},
+        {id: "2", name: "Project 2", type: "1", summary: "this is a test project 2", description: "this is the description of the project 2"},
+        {id: "5", name: "Project 3", type: "1", summary: "this is a test project 3", description: "this is the description of the project 3"}
+      ];
+      var TASKS = [
+        {id: "1", name: "Task 1", summary: "", description: "",  priority: "1", dueDate: "", creationDate: "", assignee: "Pavel Usmanov", status: "", comments: [{assignee: "1", comment: "aaa"}, {assignee: "1", comment: "new"}], project: "1"},
+        {id: "2", name: "Task 2", summary: "", description: "",  priority: "1", dueDate: "", creationDate: "", assignee: "Pavel Usmanov", status: "", comments: [{assignee: "1", comment: "aaa"}, {assignee: "1", comment: "new"}], project: "1"},
+        {id: "3", name: "Task 2", summary: "", description: "",  priority: "1", dueDate: "", creationDate: "", assignee: "Pavel Usmanov", status: "", comments: [{assignee: "1", comment: "aaa"}, {assignee: "1", comment: "new"}], project: "2"}
+      ];
+      var PROJECT_TYPE = [
+        {type: "Task"}, 
+        {type: "Bug"},
+        {type: "CR"},
+        {type: "TR"},
+        {type: "Documentation"},
+        {type: "Training"}
+      ];
+      var TASK_STATUS = [
+        {status: "Open"},
+        {status: "Development"},
+        {status: "Reopened"},
+        {status: "QCR"},
+        {status: "Testing"},
+        {status: "Approved"}
+      ];
+      var TASK_PRIORITY = [
+        {priority: "Major"},
+        {priority: "Critical"},
+        {priority: "Blocker"},
+        {priority: "Minor"}
+      ]
+
+      React.render(<ProjectList projects={PROJECTS} />, document.getElementById("project-bar"));
+      React.render(<TaskList tasks={TASKS} />, document.getElementById("task-list"));
+    });
+    </script>
+  </body>
+</html>
